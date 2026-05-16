@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>League Controls</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; padding: 20px; }
+        .person-card { background: white; margin: 15px auto; padding: 20px; width: 70%; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; }
+
+        /* Button Styles */
+        button { padding: 10px 15px; margin: 5px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: white; }
+        button:hover { opacity: 0.8; }
+
+        /* Add Buttons */
+        .btn-jamaah { background-color: #4CAF50; }
+        .btn-solo { background-color: #2196F3; }
+        .btn-late { background-color: #FF9800; }
+        .btn-missed { background-color: #f44336; }
+
+        /* Undo Buttons */
+        .btn-undo { background-color: #777; font-size: 0.85em; padding: 8px 12px; }
+
+        .control-row { margin: 10px 0; }
+        .row-label { display: inline-block; width: 60px; font-weight: bold; text-align: right; margin-right: 10px; color: #555; }
+
+        .nav-link { display: inline-block; margin-bottom: 20px; padding: 10px 15px; background: #333; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>League Controls</h1>
+    <a href="index.html" class="nav-link">Back to League Table</a>
+
+    <div id="controlsContainer">
+        <p>Loading controls from the cloud...</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Your Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCUPg-n-JJnuqAmoxPJaSHR1D5Rraxy7zI",
+            authDomain: "prayer-league.firebaseapp.com",
+            projectId: "prayer-league",
+            storageBucket: "prayer-league.firebasestorage.app",
+            messagingSenderId: "978004947783",
+            appId: "1:978004947783:web:a760bbc12e28016e511262"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let leagueData = [];
+
+        async function loadData() {
+            const snapshot = await getDoc(doc(db, "league", "scores"));
+            if (snapshot.exists()) {
+                leagueData = snapshot.data().players;
+                renderControls();
+            } else {
+                document.getElementById('controlsContainer').innerHTML = "<p>Please visit the main page first to initialize the database.</p>";
+            }
+        }
+
+        function renderControls() {
+            const container = document.getElementById('controlsContainer');
+            container.innerHTML = '';
+
+            leagueData.forEach((person, index) => {
+                const card = `
+                    <div class="person-card">
+                        <h2>${person.name} (Total Points: ${person.points})</h2>
+
+                        <!-- ADD POINTS ROW -->
+                        <div class="control-row">
+                            <span class="row-label">ADD:</span>
+                            <button class="btn-jamaah" data-index="${index}" data-type="jamaah" data-pts="3" data-action="add">Jama-ah (+3)</button>
+                            <button class="btn-solo" data-index="${index}" data-type="solo" data-pts="2" data-action="add">Solo (+2)</button>
+                            <button class="btn-late" data-index="${index}" data-type="late" data-pts="0" data-action="add">Late (+0)</button>
+                            <button class="btn-missed" data-index="${index}" data-type="missed" data-pts="-2" data-action="add">Missed (-2)</button>
+                        </div>
+
+                        <!-- REMOVE POINTS ROW -->
+                        <div class="control-row">
+                            <span class="row-label">UNDO:</span>
+                            <button class="btn-undo" data-index="${index}" data-type="jamaah" data-pts="3" data-action="remove">- Jama-ah</button>
+                            <button class="btn-undo" data-index="${index}" data-type="solo" data-pts="2" data-action="remove">- Solo</button>
+                            <button class="btn-undo" data-index="${index}" data-type="late" data-pts="0" data-action="remove">- Late</button>
+                            <button class="btn-undo" data-index="${index}" data-type="missed" data-pts="-2" data-action="remove">- Missed</button>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+
+            // Attach event listeners to all buttons
+            document.querySelectorAll('.person-card button').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = e.target.getAttribute('data-index');
+                    const type = e.target.getAttribute('data-type');
+                    const pts = parseInt(e.target.getAttribute('data-pts'));
+                    const action = e.target.getAttribute('data-action');
+
+                    if (action === 'add') {
+                        updateScore(idx, type, pts);
+                    } else if (action === 'remove') {
+                        removeScore(idx, type, pts);
+                    }
+                });
+            });
+        }
+
+        async function updateScore(personIndex, type, pointsChange) {
+            // Add to the count and points
+            leagueData[personIndex][type] += 1;
+            leagueData[personIndex].points += pointsChange;
+
+            // Instantly update the screen
+            renderControls();
+
+            // Push the new numbers up to the Cloud
+            await setDoc(doc(db, "league", "scores"), { players: leagueData });
+        }
+
+        async function removeScore(personIndex, type, pointsChange) {
+            // Check to make sure we don't go into negative tallies
+            if (leagueData[personIndex][type] > 0) {
+                // Subtract from the count and reverse the points
+                leagueData[personIndex][type] -= 1;
+                leagueData[personIndex].points -= pointsChange;
+
+                // Instantly update the screen
+                renderControls();
+
+                // Push the new numbers up to the Cloud
+                await setDoc(doc(db, "league", "scores"), { players: leagueData });
+            } else {
+                alert(`Cannot undo: ${person.name} currently has 0 for ${type}.`);
+            }
+        }
+
+        // Start by loading the data
+        loadData();
+    </script>
+</body>
+</html>

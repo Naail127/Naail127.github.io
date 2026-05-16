@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Prayer League Table</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f9; padding: 20px; }
+        h1 { color: #333; }
+        table { width: 80%; margin: 20px auto; border-collapse: collapse; background: white; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .nav-link { display: inline-block; margin-top: 20px; padding: 10px 15px; background: #333; color: white; text-decoration: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <h1>The Prayer League Table</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Total Points</th>
+                <th>Jama-ah (3 pts)</th>
+                <th>Solo (2 pts)</th>
+                <th>Late (0 pts)</th>
+                <th>Missed (-2 pts)</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <tr><td colspan="6">Loading live scores...</td></tr>
+        </tbody>
+    </table>
+
+    <a href="controls.html" class="nav-link">Go to Controls</a>
+    <script type="module">
+        // Import Firebase tools from the web
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // Your Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCUPg-n-JJnuqAmoxPJaSHR1D5Rraxy7zI",
+            authDomain: "prayer-league.firebaseapp.com",
+            projectId: "prayer-league",
+            storageBucket: "prayer-league.firebasestorage.app",
+            messagingSenderId: "978004947783",
+            appId: "1:978004947783:web:a760bbc12e28016e511262"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Default data if the database is completely empty
+        const defaultData = [
+            { name: "Hasan", points: 0, jamaah: 0, solo: 0, late: 0, missed: 0 },
+            { name: "Naail", points: 0, jamaah: 0, solo: 0, late: 0, missed: 0 },
+            { name: "Umar", points: 0, jamaah: 0, solo: 0, late: 0, missed: 0 },
+            { name: "Zain", points: 0, jamaah: 0, solo: 0, late: 0, missed: 0 }
+        ];
+
+        // Listen to the cloud database for real-time updates
+        onSnapshot(doc(db, "league", "scores"), (snapshot) => {
+            if (snapshot.exists()) {
+                const leagueData = snapshot.data().players;
+                renderTable(leagueData);
+//            } else {
+//                // If no data exists in the cloud yet, upload the defaultData
+//                setDoc(doc(db, "league", "scores"), { players: defaultData });
+            }
+        });
+
+        function renderTable(leagueData) {
+            // Sort by points descending
+            leagueData.sort((a, b) => b.points - a.points);
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+
+            leagueData.forEach(person => {
+                const row = `<tr>
+                    <td><strong>${person.name}</strong></td>
+                    <td><strong>${person.points}</strong></td>
+                    <td>${person.jamaah}</td>
+                    <td>${person.solo}</td>
+                    <td>${person.late}</td>
+                    <td>${person.missed}</td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+    </script>
+</body>
+</html>
